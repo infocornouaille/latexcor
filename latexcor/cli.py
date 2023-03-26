@@ -157,7 +157,6 @@ def clean_aux(paths: list) -> None:
                     if os.path.isdir(file):
                         shutil.rmtree(file, ignore_errors=True)
                 else:
-
                     ext = os.path.splitext((file))[1]
                     if ext in clean_up:
                         os.remove(os.path.join(path, file))
@@ -243,8 +242,7 @@ def slugify_files(path_to_watch: str, automatique=False):
             entree = "O"
         else:
             automatique = False
-    for (root, dirs, file) in os.walk(path_to_watch):
-
+    for root, dirs, file in os.walk(path_to_watch):
         for dir in dirs:
             if (
                 ".git" not in root
@@ -258,7 +256,6 @@ def slugify_files(path_to_watch: str, automatique=False):
                 and "site" not in root
                 and "site" not in dir
             ):
-
                 # print(root, dir, slugify(dir))
                 # print(os.path.join(root, dir))
                 # print(os.path.join(root, slugify(dir)))
@@ -283,7 +280,7 @@ def slugify_files(path_to_watch: str, automatique=False):
     else:
         print("Renommage des dossiers terminé.")
 
-    for (root, dirs, files) in os.walk(path_to_watch):
+    for root, dirs, files in os.walk(path_to_watch):
         for file in files:
             if ".tex" in file or ".pdf" in file or ".ipynb" in file:
                 filename, file_extension = os.path.splitext(file)
