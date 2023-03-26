@@ -1,15 +1,11 @@
 import argparse
-import codecs
 import os
-import subprocess
-import sys
-import time
-from datetime import datetime
-from slugify import slugify
-import glob
 import shutil
+import subprocess
+import time
 
 import chardet
+from slugify import slugify
 
 clean_up = [
     ".bbl",
