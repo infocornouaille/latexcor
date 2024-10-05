@@ -25,3 +25,9 @@ latexcor --slugify
 ```bash
 sudo tlmgr conf auxtrees add ~/texmf
 ```
+
+Pour utiliser mermaid:
+
+```bash
+npm install -g @mermaid-js/mermaid-cli
+```
