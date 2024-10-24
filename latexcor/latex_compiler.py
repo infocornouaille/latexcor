@@ -9,8 +9,7 @@ from typing import Iterator, List, Literal, Optional
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import (BarColumn, Progress, SpinnerColumn, TaskID,
-                           TextColumn)
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
@@ -182,8 +181,10 @@ class LatexCompiler:
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=console,
             )
-
-        cmd = [latex_engine, "-interaction=nonstopmode", "-shell-escape", str(file)]
+        output_dir = file.parent
+        cmd = [latex_engine, "-interaction=nonstopmode", "-shell-escape", 
+               "-output-directory", output_dir, 
+               str(file)]
 
         try:
             with progress:
@@ -267,11 +268,16 @@ class LatexCompiler:
         Only watches the current directory and immediate subdirectories.
         Implements a 10-second delay between compilations.
         """
+
         class DepthLimitedLatexHandler(FileSystemEventHandler):
             def __init__(self):
-                self.last_modified = {}  # Dictionary to track last compilation time per file
-                self.compilation_lock = {}  # Dictionary to track if compilation is pending per file
-                
+                self.last_modified = (
+                    {}
+                )  # Dictionary to track last compilation time per file
+                self.compilation_lock = (
+                    {}
+                )  # Dictionary to track if compilation is pending per file
+
             def should_process_path(self, file_path: str) -> bool:
                 """
                 Check if the file path should be processed based on depth and extension.
@@ -279,18 +285,20 @@ class LatexCompiler:
                 try:
                     path = Path(file_path)
                     watch_path = Path(path_to_watch)
-                    
+
                     if not path.suffix == ".tex":
                         return False
-                        
+
                     try:
                         path.relative_to(watch_path)
                     except ValueError:
                         return False
-                        
+
                     depth = len(path.relative_to(watch_path).parts)
-                    return depth <= 2  # 1 for same directory, 2 for immediate subdirectory
-                    
+                    return (
+                        depth <= 2
+                    )  # 1 for same directory, 2 for immediate subdirectory
+
                 except Exception as e:
                     logger.error(f"Error checking path depth: {e}")
                     return False
@@ -299,10 +307,17 @@ class LatexCompiler:
                 """
                 Schedule a compilation after the cooldown period.
                 """
+
                 def delayed_compile():
-                    time.sleep(max(0, 10 - (time.time() - self.last_modified.get(str(path), 0))))
+                    time.sleep(
+                        max(
+                            0, 10 - (time.time() - self.last_modified.get(str(path), 0))
+                        )
+                    )
                     if path.is_file():  # Ensure file still exists
-                        if TexFile(path, path.parent, path.stat().st_mtime).is_main_file:
+                        if TexFile(
+                            path, path.parent, path.stat().st_mtime
+                        ).is_main_file:
                             relative_path = path.relative_to(path_to_watch)
                             console.print(f"\n[bold blue]Compiling:[/] {relative_path}")
                             cls.compile_latex(path, latex_engine)
@@ -317,13 +332,17 @@ class LatexCompiler:
                     path = Path(event.src_path)
                     current_time = time.time()
                     file_path = str(path)
-                    
+
                     if current_time - self.last_modified.get(file_path, 0) >= 10:
                         self.last_modified[file_path] = current_time
                         self.schedule_compilation(path)
                     else:
-                        remaining = 10 - (current_time - self.last_modified.get(file_path, 0))
-                        logger.debug(f"Skipping compilation, {remaining:.1f} seconds remaining in cooldown")
+                        remaining = 10 - (
+                            current_time - self.last_modified.get(file_path, 0)
+                        )
+                        logger.debug(
+                            f"Skipping compilation, {remaining:.1f} seconds remaining in cooldown"
+                        )
 
         # Set up the observer
         observer = Observer()
@@ -332,7 +351,9 @@ class LatexCompiler:
 
         try:
             console.print(f"[bold green]Watching directory:[/] {path_to_watch}")
-            console.print("[bold yellow]Note:[/] Only watching current directory and immediate subdirectories")
+            console.print(
+                "[bold yellow]Note:[/] Only watching current directory and immediate subdirectories"
+            )
             console.print("[dim]Press Ctrl+C to stop watching...[/]")
             observer.start()
             while True:
