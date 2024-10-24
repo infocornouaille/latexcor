@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "latexcor"
-version = "0.2.1"
+version = "0.2.3"
 description = ""
 authors = ["infocornouaille <90894019+infocornouaille@users.noreply.github.com>"]
 license = "MIT"
