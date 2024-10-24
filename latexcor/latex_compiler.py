@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import subprocess
 import threading
@@ -89,6 +90,7 @@ class LatexCompiler:
         ".bara",
         ".barb",
         ".tab",
+        ".cor",
     }
 
     # Temporary folders to clean up
@@ -182,9 +184,10 @@ class LatexCompiler:
                 console=console,
             )
         output_dir = file.parent
-        cmd = [latex_engine, "-interaction=nonstopmode", "-shell-escape", 
-               "-output-directory", output_dir, 
-               str(file)]
+
+        current_dir = os.getcwd()
+        os.chdir(output_dir)
+        cmd = [latex_engine, "-interaction=nonstopmode", "-shell-escape", str(file)]
 
         try:
             with progress:
@@ -235,6 +238,7 @@ class LatexCompiler:
             console.print(f"\n[bold red]Unexpected error:[/] {str(e)}")
             return False
         finally:
+            os.chdir(current_dir)
             cls.clean_aux(file.parent)
 
     @classmethod
