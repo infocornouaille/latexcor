@@ -20,9 +20,11 @@ logger = logging.getLogger(__name__)
 
 LatexEngine = Literal["xelatex", "pdflatex", "lualatex"]
 
+
 def get_current_user_info():
     """Récupère l'UID et le GID de l'utilisateur courant."""
     import pwd
+
     uid = os.getuid()
     gid = os.getgid()
     user = pwd.getpwuid(uid).pw_name
@@ -211,12 +213,12 @@ class LatexCompiler:
                 # Utilisation de Path pour gérer correctement les chemins
                 relative_file = file.name
                 current_path = os.path.abspath(os.getcwd())
-                
+
                 # Adaptation du chemin pour Windows
-                if os.name == 'nt':
-                    current_path = current_path.replace('\\', '/')
-                    if ':' in current_path:
-                        drive, path = current_path.split(':', 1)
+                if os.name == "nt":
+                    current_path = current_path.replace("\\", "/")
+                    if ":" in current_path:
+                        drive, path = current_path.split(":", 1)
                         current_path = f"/{drive.lower()}{path}"
                     cmd = [
                         "docker",
@@ -239,18 +241,18 @@ class LatexCompiler:
                         "run",
                         "-i",
                         "--rm",
-                        #f"--user={uid}:{gid}",  # Exécuter en tant qu'utilisateur courant
+                        # f"--user={uid}:{gid}",  # Exécuter en tant qu'utilisateur courant
                         "-v",
                         f"{current_path}:/data:Z",  # Ajouter explicitement les droits d'écriture
-                        #"-w",  # Définir le répertoire de travail
-                        #"/data:Z",
+                        # "-w",  # Définir le répertoire de travail
+                        # "/data:Z",
                         "infocornouaille/tools:perso",
                         latex_engine,
                         "-interaction=nonstopmode",
                         "-shell-escape",
                         relative_file,
                     ]
-                    
+
                     # S'assurer que le répertoire courant a les bonnes permissions
                     os.chmod(current_path, 0o755)
             else:
@@ -259,10 +261,10 @@ class LatexCompiler:
                     latex_engine,
                     "-interaction=nonstopmode",
                     "-shell-escape",
-                    str(file.name)
+                    str(file.name),
                 ]
 
-            #console.print(f"[dim]Debug: Executing command: {' '.join(cmd)}[/]")
+            # console.print(f"[dim]Debug: Executing command: {' '.join(cmd)}[/]")
 
             with progress:
                 if task_id is None:
@@ -289,7 +291,7 @@ class LatexCompiler:
                         line = process.stdout.readline()
                         if not line and process.poll() is not None:
                             break
-                        #console.print(f"[dim]{line.strip()}[/]")  # Debug output
+                        # console.print(f"[dim]{line.strip()}[/]")  # Debug output
                         if compilation_progress.update(line):
                             progress.update(
                                 task_id, completed=((pass_num - 1) * 50) + 25
