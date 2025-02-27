@@ -4,12 +4,15 @@ from typing import Optional
 
 import tomli
 import typer
+
 from rich.console import Console
 
 from . import __version__
 from .encoding_converter import EncodingConverter
 from .file_manager import FileManager
 from .latex_compiler import LatexCompiler
+from .__version__ import __version__
+
 
 console = Console()
 
@@ -28,12 +31,7 @@ app = typer.Typer(
 
 def get_version() -> str:
     """Get version from pyproject.toml."""
-    try:
-        with open("pyproject.toml", "rb") as f:
-            version = tomli.load(f)["tool"]["poetry"]["version"]
-        return version
-    except (FileNotFoundError, KeyError):
-        return __version__
+    return __version__
 
 
 def get_current_path() -> Path:
