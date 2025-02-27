@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, List, Literal, Optional
 
+from dockercor import get_image_info, run_docker_command
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
@@ -18,6 +19,14 @@ console = Console()
 logger = logging.getLogger(__name__)
 
 LatexEngine = Literal["xelatex", "pdflatex", "lualatex"]
+
+def get_current_user_info():
+    """Récupère l'UID et le GID de l'utilisateur courant."""
+    import pwd
+    uid = os.getuid()
+    gid = os.getgid()
+    user = pwd.getpwuid(uid).pw_name
+    return uid, gid, user
 
 
 @dataclass
@@ -167,11 +176,13 @@ class LatexCompiler:
     def compile_latex(
         cls,
         file: Path,
-        latex_engine: LatexEngine = "xelatex",
+        latex_engine: str = "xelatex",
         progress: Optional[Progress] = None,
         task_id: Optional[TaskID] = None,
     ) -> bool:
         """Compiles a LaTeX file with progress bar."""
+        # Conversion en Path si ce n'est pas déjà fait
+        file = Path(file).resolve()
         log_file = file.with_suffix(".log")
         compilation_progress = CompilationProgress()
 
@@ -183,13 +194,76 @@ class LatexCompiler:
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 console=console,
             )
-        output_dir = file.parent
 
+        # Sauvegarde et changement du répertoire de travail
+        output_dir = file.parent
         current_dir = os.getcwd()
-        os.chdir(output_dir)
-        cmd = [latex_engine, "-interaction=nonstopmode", "-shell-escape", str(file)]
+        os.chdir(str(output_dir))
 
         try:
+            docker_ready = get_image_info("infocornouaille/tools:perso")
+        except Exception:
+            docker_ready = None
+
+        try:
+            if docker_ready:
+                console.print("\n[bold green]Using docker infocornouaille/tools")
+                # Utilisation de Path pour gérer correctement les chemins
+                relative_file = file.name
+                current_path = os.path.abspath(os.getcwd())
+                
+                # Adaptation du chemin pour Windows
+                if os.name == 'nt':
+                    current_path = current_path.replace('\\', '/')
+                    if ':' in current_path:
+                        drive, path = current_path.split(':', 1)
+                        current_path = f"/{drive.lower()}{path}"
+                    cmd = [
+                        "docker",
+                        "run",
+                        "-i",
+                        "--rm",
+                        "-v",
+                        f"{current_path}:/data",
+                        "infocornouaille/tools:perso",
+                        latex_engine,
+                        "-interaction=nonstopmode",
+                        "-shell-escape",
+                        relative_file,
+                    ]
+                else:
+                    # Sous Linux, on ajoute les permissions utilisateur
+                    uid, gid, user = get_current_user_info()
+                    cmd = [
+                        "docker",
+                        "run",
+                        "-i",
+                        "--rm",
+                        #f"--user={uid}:{gid}",  # Exécuter en tant qu'utilisateur courant
+                        "-v",
+                        f"{current_path}:/data:Z",  # Ajouter explicitement les droits d'écriture
+                        #"-w",  # Définir le répertoire de travail
+                        #"/data:Z",
+                        "infocornouaille/tools:perso",
+                        latex_engine,
+                        "-interaction=nonstopmode",
+                        "-shell-escape",
+                        relative_file,
+                    ]
+                    
+                    # S'assurer que le répertoire courant a les bonnes permissions
+                    os.chmod(current_path, 0o755)
+            else:
+                console.print("\n[bold green]Using system latex")
+                cmd = [
+                    latex_engine,
+                    "-interaction=nonstopmode",
+                    "-shell-escape",
+                    str(file.name)
+                ]
+
+            #console.print(f"[dim]Debug: Executing command: {' '.join(cmd)}[/]")
+
             with progress:
                 if task_id is None:
                     task_id = progress.add_task(f"Compiling {file.name}", total=100)
@@ -215,28 +289,28 @@ class LatexCompiler:
                         line = process.stdout.readline()
                         if not line and process.poll() is not None:
                             break
-
+                        #console.print(f"[dim]{line.strip()}[/]")  # Debug output
                         if compilation_progress.update(line):
                             progress.update(
                                 task_id, completed=((pass_num - 1) * 50) + 25
                             )
 
                     return_code = process.wait()
-
                     if return_code != 0 or compilation_progress.errors:
                         error_context = cls.extract_error_context(log_file)
                         console.print("\n[bold red]Compilation errors:[/]")
                         for error in compilation_progress.errors + error_context:
-                            console.print(Panel(error, style="red"))
+                            console.print(f"[red]{error}[/]")
                         return False
 
                     progress.update(task_id, completed=pass_num * 50)
 
-                return True
+            return True
 
         except Exception as e:
             console.print(f"\n[bold red]Unexpected error:[/] {str(e)}")
             return False
+
         finally:
             os.chdir(current_dir)
             cls.clean_aux(file.parent)
